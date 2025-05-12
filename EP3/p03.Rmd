@@ -1,0 +1,189 @@
+---
+title: "EP03"
+author: "Ignacio Solar, Vicente Rojas y Diego Molina (Grupo 9)"
+date: "2025-04-01"
+output: html_document
+---
+
+*Pregunta 1: Si la ingeniera está seguro de que el verdadero volumen medio no puede ser superior a 10 litros y piensa rechazar la hipótesis nula cuando la muestra presente una media menor a 9,81 litros, ¿cuál es la probabilidad de que cometa un error de tipo I? Para responder, generen un gráfico de la distribución muestral de las medias hipotetizada en donde se marque la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. Tome como ejemplo los scripts presentados en la lectura sobre poder estadístico.*
+
+Para responder a esta pregunta se han formulado las siguientes hipótesis:
+
+- Ho:El verdadero volumen medio es igual a 10 litros (μ=10)
+- Ha:El verdadero volumen medio es menor a 10 litros (μ<10)
+
+En primera instancia se anotarán los datos del enunciado y en conjunto se calcularán datos faltantes como el error estándar (SE), esto con la finalidad de obtener un valor de alfa aproximado, el cual, corresponde a la probabilidad de que se cometa un error de tipo I.
+
+Seguidamente, se tomará un rango de valores entre 9.6 y 10.4 para confeccionar un gráfico representativo, denotando con color rojo el área hipotetizada de cometer un error de tipo I.
+
+```{r}
+library(ggplot2)
+n=100
+sigma=1
+media_nula=10
+SE = sigma / sqrt(n)
+val_crit=9.81
+
+# Calculo de aproximacion del alfa
+alfa_aprox=pnorm(val_crit, mean = media_nula, sd = SE,lower.tail = TRUE)
+print(alfa_aprox)# Error tipo I
+
+# Se generan datos para la distribución normal
+x_valores = seq(9.6, 10.4, 0.01)
+y_valores = dnorm(x_valores, mean = media_nula, sd = SE)
+datos = data.frame(x = x_valores, y = y_valores)
+
+# Region de error
+datos_alpha= subset(datos, x <= val_crit)
+
+# Crear el gráfico con ggplot2
+ggplot(datos, aes(x = x, y = y)) +
+  geom_line(color = "blue", size = 1) +  
+  geom_area(data = datos_alpha, aes(x = x, y = y), fill = "red", alpha = 0.5) +  
+  geom_vline(xintercept = val_crit, color = "red", linetype = "dashed", size = 1) +  # Línea del punto crítico
+  labs(title = "Distribución de la Media Muestral bajo Ho",
+       x = "Media muestral (X)",
+       y = "Densidad") +
+  theme_minimal()
+
+```
+Como resultado, esta pregunta conluyó que la probabilidad de que se cometa un error de tipo I es de 2.87% aproximadamente, tal como se puede apreciar en el gráfico obtenido.
+
+
+
+*Pregunta 2: Si el verdadero volumen medio de los bidones fuera de 9,9 litros, ¿cuál sería la probabilidad de que la ingeniera, que obviamente no conoce este dato, cometa un error de tipo II? Para responder, agregue al gráfico anterior la verdadera distribución muestral de las medias y marquen (con otro color) la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. También hay ejemplos de este procedimiento en la lectura sobre poder estadístico.*
+
+Teniendo en consideración 9.9 litros como una posible media real, es posible estimar una aproximación de beta, es decir, la probabilidad de cometer un error de tipo II.
+
+Sumado a esto, es posible recrear el gráfico anterior añadiendo esta nueva probabilidad, cuya región es denotada por el color azul, como se muestra a continuación:
+
+```{r}
+# Se define la media real
+media_real=9.9
+
+# Calculo de aproximacion de beta 
+beta_aprox= pnorm(val_crit,mean=media_real,sd=SE,lower.tail = FALSE)
+print(beta_aprox)
+
+# Datos para ambas distribuciones
+y_real=dnorm(x_valores, mean = media_real, sd = SE)
+datos2=data.frame(x = x_valores, y = y_valores, y_real = y_real)
+
+# Region de error
+datos_beta = subset(datos2, x >= val_crit)  
+
+# Grafico con verdadera distribucion
+ggplot(datos2, aes(x = x)) +
+  geom_line(aes(y = y_valores), color = "blue", size = 1, linetype = "solid") +  # Curva bajo Ho
+  geom_line(aes(y = y_real), color = "purple", size = 1, linetype = "dashed") +  # Curva bajo Ha
+  geom_area(data = datos_alpha, aes(y = y), fill = "red", alpha = 0.5) +  # Región de error tipo I
+  geom_area(data = datos_beta, aes(y = y_real), fill = "blue", alpha = 0.5) +  # Región de error tipo II
+  geom_vline(xintercept = val_crit, color = "red", linetype = "dashed", size = 1) +  # Línea de punto crítico
+  labs(title = "Gráfico actualizado con la verdadera distribución muestral de las medias",
+       x = "Media muestral (X)",
+       y = "Densidad") +
+  theme_minimal()
+
+```
+Como resultado, se obtuvo una probabilidad aproximada de 81.5% de cometer un error de tipo II, tal como se muestra en el gráfico anterior, contrastando con la probabilidad de cometer un error de tipo I.
+
+
+*Pregunta 3: Como no se conoce el verdadero volumen medio, genere un gráfico del poder estadístico con las condiciones anteriores, pero suponiendo que el verdadero volumen medio podría variar de 9,6 a 10 litros. Hay un ejemplo de este tipo de gráfico en la lectura sobre poder estadístico.*
+
+
+Para responder esta pregunta se generará un rango de valores alrededor de la posible media verdadera, lo cual, es de utilidad para demostrar como el poder estadístico varía a medida que se aproxima a la media nula.
+
+```{r}
+library(pwr)
+# Rango de valores posibles para la verdadera media
+medias_verdaderas= seq(9.6, 10, 0.01)
+
+# Poder estadístico para cada media real
+deltas= medias_verdaderas - media_nula
+deltas_norm= deltas/ sigma
+
+# Calculo del poder según la media
+f_pzl=function(x) pwr.norm.test(x , n = n ,sig.level= alfa_aprox , alternative = "less") [["power"]] 
+
+poder_unilat= sapply(deltas_norm,f_pzl)
+
+power_data = data.frame(mu_real = medias_verdaderas, power = poder_unilat)
+
+# Puntos específicos a resaltar en el gráfico para mejor visualización
+puntos_x = c(9.6, 9.7, 9.8, 9.9, 10)
+puntos_y = sapply((puntos_x - media_nula) / sigma, f_pzl)
+puntos_df = data.frame(mu_real = puntos_x, power = puntos_y)
+
+# Gráfico con líneas de intersección
+ggplot(power_data, aes(x = mu_real, y = power)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(data = puntos_df, aes(x = mu_real, y = power), color = "black", size = 3) + # Puntos de intersección
+  labs(title = "Curva de Poder Estadístico",
+       x = "Verdadera media (μ)",
+       y = "Poder estadístico") +
+  theme_minimal()
+
+```
+Como resultado, se obtuvo un gráfico que muestra como el poder estadistico va disminuyendo a medida que la verdadera media se acerca a la media nula. Esto es debido a que se reduce la capacidad de detectar una diferencia significativa en esa dirección.
+
+*Pregunta 4: Considerando un volumen medio de 10 litros, ¿cuántos bidones deberían revisarse para conseguir un poder estadístico de 0,7 y un nivel de significación de 0,05?*
+
+La ingeniera sospecha que los bidones podrían estarse llenando con menos de los 10 litros requeridos. Para verificar esta hipótesis, se realiza una prueba de hipótesis unilateral (cola izquierda):
+
+- Ho : μ=10
+- Ha : μ<10
+
+Se asume una desviación estándar conocida de 1 litro, y que la media real podría estar en torno a 9.9 litros, lo que implica una diferencia de solo 0.1 litros respecto al valor objetivo.
+
+```{r}
+# Parámetros utilizados en el análisis:
+
+# Media nula de 10 litros
+# Media real sospechada de 9.9 litros
+# Desviación estándar (σ) de 1 litro
+alpha=0.05 # Nivel de significación (α)
+power=0.7 #Poder estadístico deseado
+
+#Tamaño del efecto
+effect_size_d = (media_real - media_nula) / sigma 
+
+# Cálculo de bidones requeridos
+n_pwr=pwr.norm.test(d = effect_size_d,
+                               sig.level = alpha,
+                               power = power,
+                               alternative = "less")
+# Resultado
+n_requerido = ceiling(n_pwr$n)
+print(paste(n_requerido))
+
+```
+Como resultado, para detectar una diferencia de apenas 0.1 litros con un 70% de probabilidad de éxito (poder) y un 5% de error tipo I, se requiere revisar al menos 471 bidones.
+
+*Pregunta 5:¿Alcanzaría esta muestra para detectar la diferencia que la ingeniera sospecha que existe entre las dos máquinas de la planta con al menos las mismas probabilidades de cometer errores?*
+
+La ingeniera sospecha que existe una diferencia entre las dos máquinas en cuanto a su desempeño en el llenado correcto de los bidones, y en particular, cree que la máquina más antigua comete más errores que la moderna. Para evaluar esta hipótesis, se considera el siguiente contraste:
+
+- Ho: La proporción de cumplimiento de la máquina antigua es mayor o igual que la de la moderna (p1≥p2).
+
+- Ha: La proporción de cumplimiento de la máquina antigua es menor que la de la moderna (p1<p2).
+
+```{r}
+library(pwr)
+# Parámetros utilizados:
+
+# p1=0.90 (proporción de cumplimiento de la máquina antigua 90%)
+# p2=0.96 (proporción de cumplimiento de la máquina moderna 96%)
+alpha = 0.05 # Nivel de significancia
+poder = 0.7 # Poder estadístico deseado
+
+h = ES.h(p1 = 0.90, p2 = 0.96) # Tamaño del efecto 
+
+# Prueba para indicar la cantidad minima de muestras necesarias 
+resultado= pwr.2p.test(h = h, power = poder, sig.level = alpha, alternative = "two.sided")
+
+print(resultado)
+
+
+```
+Como resultado, el test indicó que con un n=213 aproximadamente, representa el tamaño mínimo de la muestra por maquina. Teniendo en cuenta que en el test anterior se obtuvo 471 para ambas maquinas, si este resultado se divide a la mitad, se tiene 235 muestras aproximadamente para cada  máquina, por lo cual, el "n" obtenido demuestra que se tienen los bidones mínimos necesarios para detectar diferencias.
+

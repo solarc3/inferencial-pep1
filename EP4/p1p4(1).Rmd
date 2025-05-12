@@ -1,0 +1,198 @@
+---
+title: "EP04"
+author: "Grupo 9"
+date: "2025-04-10"
+output: html_document
+---
+
+# Pregunta 1
+
+## En un evento deportivo, las y los participantes tienen la opción de inscribirse en una carrera de velocidad o en una carrera de resistencia. Después de la inscripción, se sabe que, de los 11 hombres y 12 mujeres que participaron, 9 hombres y 4 mujeres prefieren inscribirse en la carrera de velocidad.¿Tiene relación el sexo de las personas que participan del evento deportivo e inscribirse en la carrera de velocidad o en la carrera de resistencia?.
+
+Para responder a esta pregunta se utilizará la "Prueba Exacta de Fisher". Esta prueba es seleccionada debido a que es de utilidad para estudiar la asociación entre dos variables dicotómicas, como el sexo (hombre y mujer) y el tipo de carrera elegida (velocidad y resistencia). Además, se cumplen las condiciones necesarias para aplciar este tipo de prueba, esto gracias a que los grupos son independientes y las variables son categoricas. La razón de por qué no se aplicó una prueba de chi-cuadrado es debido a que la muestra es pequeña, específicamente porque al realizar pruebas se observó menos de 5 observaciones en uno de los grupos, por lo cual, en estos casos la prueba de Fisher posee más exactitud y confiabilidad.
+
+Para el estudio se han realizado las siguientes hiótesis:
+
+$$H_0: \text{La elección del tipo de carrera es independiente del sexo de las personas.}\\ H_A: \text{La elección del tipo de carrera está relacionada con el sexo de las personas.}$$
+
+
+```{r}
+#Creamos tabla de contingencia
+hombres=11
+mujeres=12
+
+c_velocidad_h=9
+c_resistencia_h= hombres - c_velocidad_h
+
+c_velocidad_m=4
+c_resistencia_m= mujeres - c_velocidad_m
+
+
+sexo = c(
+  rep("Hombre", c_velocidad_h + c_resistencia_h),
+  rep("Mujer", c_velocidad_m + c_resistencia_m)
+)
+
+tipo_carrera = c(
+  rep("Velocidad", c_velocidad_h),
+  rep("Resistencia", c_resistencia_h),
+  rep("Velocidad", c_velocidad_m),
+  rep("Resistencia", c_resistencia_m)
+)
+
+datos= data.frame(
+  Sexo = factor(sexo),
+  Carrera = factor(tipo_carrera)
+)
+
+tabla= xtabs(~.,datos)
+print(tabla)
+
+#Se aplica el test de fisher a la tabla creada
+resultado=fisher.test(tabla)
+print(resultado)
+
+
+```
+Como p-valor es menor al nivel de significancia (0.05), se rechaza la hipotesis nula en favor de la alternativa. Por lo cual, existe una asociación significativa entre el sexo de los participantes y el tipo de carrera que escogen.
+
+
+# Pregunta 2
+
+## Una agencia de marketing desea determinar si hay una diferencia significativa en la efectividad de tres estrategias publicitarias utilizadas para promocionar un nuevo producto. Para ello, se ha recopilado información de personas que fueron expuestas a las tres estrategias publicitarias, registrando si mostraron una aceptación (A) o rechazo (R) a cada una de ellas. ¿Qué puede concluir la agencia de marketing sobre la efectividad de las estrategias publicitarias para promover el nuevo producto?
+
+
+Para esta pregunta se decide utilizar la prueba Q de cochran, debido especificamente a los tipos de variables que se tienen, en este caso se tienen 3 distintas estrategias y un resultado (A o R), que provienen de los mismos individuos.
+
+Para poder aplicarla se necesita:
+
+- Respuesta dicotomica.
+- Grupos relaciones. Si, las 3 estrategias se prueban sobre las mismas personas
+- Size de la muestra. n>= 24, si.
+
+Se realiza la siguiente hipotesis:
+
+$$H_0: \text{La proporcion de aceptacion es la misma para las 3 estrategias} (p_1 = p_2 = p_3) \\ H_A: \text{La proporcion de aceptacion difiere en almenos una de las estrategias}$$
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(RVAideMemoire)
+set.seed(326)
+alpha = 0.05
+datos = read.csv2("EP04 Datos.csv")
+muestra =  slice_sample(datos, n=50, replace = FALSE)
+long_muestra = muestra |> pivot_longer(cols = c("estrategia_1", "estrategia_2", "estrategia_3"))
+long_muestra = long_muestra %>% rename(estrategia = name, resultado = value)
+cochran = cochran.qtest(resultado ~ estrategia | id, data = long_muestra, alpha = alpha)
+print(cochran)
+```
+
+Ya que se tiene un $p = 0.889$, no se puede rechazar la hipotesis nula $H_0$. No hay evidencia estadistica suficiente para decir que existen diferencias en la efectividad de las estrategias
+
+
+# Pregunta 3
+
+## Una investigación reciente en un laboratorio de Kanto se enfocó en analizar el efecto de una nueva técnica de entrenamiento en el rendimiento del ataque inicial de criaturas Pokémon. Para ello, se seleccionaron aleatoriamente 25 criaturas y registró su poder de ataque inicial. Luego, a este grupo se les sometió al entrenamiento nuevo y, al finalizar, se les registró nuevamente los niveles de ataque inicial. Los resultados se presentan a continuación:
+
+## - 2 criaturas tenían un nivel bajo de ataque antes y después del entrenamiento.
+## - 8 criaturas con nivel bajo de ataque inicial mostraron un aumento en su ataque después del entrenamiento.
+## - 12 criaturas mantuvieron un alto nivel de ataque antes y después del entrenamiento.
+## - 3 criatura mostró un nivel alto de ataque inicial, pero se redujo después del entrenamiento.
+
+## ¿Hay evidencia de que el nuevo entrenamiento tiene un efecto significativo en el rendimiento del ataque inicial de las criaturas Pokémon?
+
+Para dar solución a esta incógnita se decidió utilizar la prueba de "McNemar", esto debido a que dicha prueba permite observar cambios significativos en las proporciones observadas, en este caso, dicho cambio está dado por el rendimiento del ataque de las criaturas gracias al nuevo entrenamiento.
+
+Para poder aplicar dicha prueba, se cumple con las siguientes condiciones:
+
+- Frecuencias apareadas, ya que se evalúan las condiciones de las criaturas antes y después del entrenamiento.
+
+- Presencia de variable dicotomica, en este caso el ataque inicial, con dos niveles (alto y bajo).
+
+- Se analiza cambios en las proporciones observadas, más específicamente, se enfoca en los casos donde cambiaron de categoría.
+
+
+Se plantean las siguientes hipotesis:
+
+$$H_0: \text{No hay un efecto significativo usando el entrenamiento de los pokemon} \\ H_A: \text{Existe un efecto significativo usando el entrenamiento de los pokemon}$$
+
+````{r}
+# a : buen desempeño antes y despues
+# b : buen desempeño antes y mal desempeño despues
+# c : mal desempeño antes y buen desempeño despues
+# d : mal desempeño antes y despues
+
+a = 12
+b = 3
+c = 8
+d = 2
+
+ab = a + b
+cd = c + d
+ac = a + c
+bd = b + d
+
+# Total de pokemones
+n = 25
+
+pokemon= seq(1:n)
+despues= c(rep("alto", ac), rep("bajo", bd))
+antes= c(rep("alto", a), rep("bajo", cd), rep("alto", b))  
+datos= data.frame(pokemon, antes, despues)
+tabla= table(antes, despues)
+
+# Mostrar tabla
+cat("Tabla de contingencia : \n-------------------------------\n")
+print(tabla)
+
+prueba_McNemar= mcnemar.test(tabla, correct = FALSE)
+
+cat("\n\nRESULTADOS:\n-------------------------------------\n")
+print(prueba_McNemar)
+
+````
+Como conclusión, si definimos un nivel de significancia de 0.05, entonces podemos decir que dado la prueba se obtuvo un p-valor = 0.1317, es decir, p-valor > nivel de significancia. Esto quiere decir no es posible rechazar la hipotesis nula, por lo cual, los resultados sugieren que no hay evidencia significativa para decir que el entrenamiento tenga un efecto sobre el rendimiento del ataque inicial de los pokemones.
+
+
+# Pregunta 4
+
+## Un supermercado está interesado en determinar si la distribución de la clientela que prefieren pagar con diferentes métodos de pago es la misma en dos sucursales que están ubicadas en zonas de la cuidad con situación socioeconómica dispares (sucursal LC3 y sucursal LP2). Se seleccionaron aleatoriamente 20 personas de cada sucursal y se registró el método de pago utilizado por cada una. Se registraron que 6 personas pagaron con efectivo, 6 con tarjeta de crédito y 8 con tarjeta de débito en la sucursal LC3, mientras que 10 personas pagaron con efectivo, 5 con tarjeta de crédito y 5 con tarjeta de débito en la sucursal LP2. ¿Existe evidencia de que la proporción de clientes y clientas que prefieren pagar con diferentes métodos de pago sea la misma en ambas sucursales?
+
+Para esta pregunta se ha decidido utilizar la prueba "chi-cuadrado de homogeneidad", ya que se realiza una comparación entre dos poblaciones independientes (las sucursales LC3 y LP2) con respecto a la distribución de una variable categórica (es decir, el método de pago). Además las muestras son independientes, se cuenta con al menos 5 observaciones en ambos grupos y se busca evaluar que en ambas poblaciones se tenga la misma distribución de la variable de estudio.
+
+En cuanto a las hipótesis, se tienen las siguientes para el análisis:
+
+$$H_0: \text{La distribución de los métodos de pago es la misma en ambas sucursales} \\ H_A: \text{La distribución de los métodos de pago difiere entre las dos sucursales}$$
+
+
+```{r}
+#En LC3
+efectivo_LC3=6
+credito_LC3=6
+debito_LC3=8
+
+#En LP2
+efectivo_LP2=10
+credito_LP2=5
+debito_LP2=5
+
+
+LC3 = c(efectivo_LC3, credito_LC3, debito_LC3)
+LP2 = c(efectivo_LP2, credito_LP2, debito_LP2)
+
+#Se forma tabla de contingencia
+
+tabla= as.table(rbind( LC3, LP2))
+
+dimnames(tabla)= list(Sucursales= c("LC3","LP2"), Metodo_Pago= c("Efectivo", "Credito", "Debito"))
+
+print(tabla)
+
+#Se aplica test chi-cuadrado
+resultado=chisq.test(tabla)
+print(resultado)
+
+```
+
+Como el p-valor es mayor al nivel de significancia 0.05, no hay suficiente evidencia para rechazar la hipotesis nula, por lo cual, no es posible afirmar que las distribuciones de métodos de pago difieren entre las sucursales presentadas.
