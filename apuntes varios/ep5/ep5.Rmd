@@ -1,0 +1,135 @@
+---
+title: "EP05"
+author: "Grupo 9"
+date: "2025-04-14"
+output: html_document
+---
+
+# Pregunta
+
+## ¿Existen diferencias en el tiempo de resolución de cubos Megaminx entre participantes de Chile, Argentina y Perú?
+
+Para dar respuesta a la pregunta planteada es indispensable formular las siguientes hipótesis:
+
+Ho= Los tiempos de resolución promedio de los países Chile, Argentina y Perú son iguales para los cubos megaminx (μ_Chile= μ_Argentina= μ_Peru).
+
+Ha= Los tiempos de resolución promedio para la resolución de cubos megaminx difiere para al menos uno de los países (∃i,j tal que μi!=μj)
+
+En base a estas hipótesis se realizará la prueba ANOVA para muestras independientes, por lo cual, es necesario verificar el cumplimiento de las condiciones necesarias para llevar a cabo dicha prueba.
+
+Empezando por la escala, dado que la variable dependiente es el tiempo, el cual, se mide en segundos, posee intervalos constantes sin importar dónde se ubique en la escala, cumpliendo así con la primera condición para aplicar la prueba de ANOVA.
+
+Para la segunda condición de independencia, esta se cumple debido a que los datos extraídos pertenecen a distintas poblaciones según el país de los competidores.
+
+En el caso de la condición de normalidad, a continuación se realizará un gráfico Q-Q por país para así evaluar la normalidad de los datos, no sin antes organziar los datos en formato largo y ancho:
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggpubr)
+library(ggplot2)
+
+datos = read.csv2("EP05 Datos.csv") 
+
+datos_largo = datos %>%
+  select(-X) %>%
+  filter(pais %in% c("Perú", "Chile", "Argentina"), tipo == "Megaminx") %>%
+  select(-tipo) %>% 
+  mutate(pais = factor(pais))
+
+datos_ancho= datos_largo %>%
+  pivot_wider(id_cols = id,names_from = pais,values_from = tiempo)
+
+g= ggqqplot(datos_largo, x = "tiempo", y = "pais", color = "pais",
+  palette = c("steelblue", "steelblue1", "steelblue4"))
+
+g= g + facet_wrap(~ pais)
+g= g + rremove("x.ticks") + rremove("x.text")
+g= g + rremove("y.ticks") + rremove("y.text")
+g= g + rremove("axis.title")
+
+print(g)
+
+```
+
+Como resultado de los gráficos, es posible observar como visualmente las muestras de cada país tienden a una distribución normal.
+
+Para la última condicón, es decir, la comprobación de homogeneidad de varianzas en las muestras estudiadas, se realizará un cálculo que obtenga la razón entre la máxima y la mínima varianza muestral:
+
+```{r}
+# Datos por país
+datos_peru = datos_largo[datos_largo$pais == "Perú",]
+datos_chile = datos_largo[datos_largo$pais == "Chile", ]
+datos_argentina = datos_largo[datos_largo$pais == "Argentina", ]
+
+var_peru= var(datos_peru$tiempo)
+var_chile= var(datos_chile$tiempo)
+var_argentina= var(datos_argentina$tiempo)
+
+varianzas= c(var_peru, var_chile, var_argentina)
+razon_var= max(varianzas) / min(varianzas)
+print(razon_var)
+
+```
+
+Como resultado, la razón esta por debajo de 1.5 , lo cual para este contexto es indicativo de que se cumple la condición de homocedasticidad.
+
+Como formalidad, se hace ademas una prueba de homocedasticidad mediante una prueba de Levene.
+```{r}
+library(car)
+levene_test <- leveneTest(tiempo ~ pais, data = datos_largo)
+print(levene_test)
+```
+El valor p que retorna la prueba de Levene indica que no existe evidencia suficiente para rechazar la hipotesis nula. Agregando al resultado de la razon anterior, se puede asumir que la varianza de tiempo de resolucion son homogeneas entre los 3 paises. Por lo tanto se cumple el supuesto de homocedasticidad requerido para ANOVA.
+
+
+A continuación, ya habiendo comprobado estas condiciones, se realizará como tal la prueba ANOVA para muestras independientes:
+
+```{r}
+# Se crea modelo ANOVA
+modelo_anova= aov(tiempo ~ pais, data = datos_largo)
+
+# Resultado del modelo
+resultado_anova= summary(modelo_anova)
+print(resultado_anova)
+
+```
+
+Como resultado, la prueba ANOVA ómnibus para muestras independientes mostró diferencias significativas en los tiempos promedio de resolución del cubo Megaminx entre los países Perú, Chile y Argentina debido a un p-valor menor al nivel de significancia (p\<0.05). Como consecuencia, es posible rechazar la hipótesis nula en favor de la hipótesis alternativa, por lo que al menos uno de los países presenta un tiempo de resolución significativamente distinto de los otros.
+
+Sumado a esto, ya que se encontraron diferencias significativas, es posible realizar una prueba post-hoc para determinar qué pares de países presentan estas diferencias. La prueba que se adapta mejor a estas circunstancias y se aplicará a continuación, es la prueba HSD de Tukey, ya que está diseñada específicamente para comparar los pares de grupos luego de realizar una prueba ANOVA para muestras independientes:
+
+```{r}
+# Se define nivel de significancia
+alfa= 0.05
+
+# Aplicación de prueba HSD de Tukey
+resultado_posthoc= TukeyHSD(modelo_anova, "pais", ordered = TRUE, conf.level = 1 - alfa)
+
+print(resultado_posthoc)
+
+```
+
+Según los resultados obtenidos,con un nivel de significancia del 5%, existen diferencias significativas en los tiempos de resolución del cubo Megaminx entre Perú-Chile y Argentina-Chile, obteniendo Perú y Argentina en promedio un retraso en comparación a Chile de 0.43 y 0.65 segundos respectivamente. Cabe resaltar que la diferencia entre Argentina y Perú no es tomada en cuenta debido a que se sobrepasa el nivel de significancia estípulado, aunque el p-valor es bastante cercano al 5%.
+
+## Conclusión
+
+Para finalizar, podemos responder a la pregunta inicial:\
+"¿Existen diferencias en el tiempo de resolución de cubos Megaminx entre participantes de Chile, Argentina y Perú?"
+
+Con base en los resultados de la prueba ANOVA, se obtuvo un valor p menor a 0.05, lo que indica que existen diferencias significativas en los tiempos promedio de resolución entre los países evaluados.
+
+Posteriormente, se aplicó la prueba post-hoc de Tukey para identificar entre qué pares de países se presentaban estas diferencias. Al aplicar esta prueba, se observó que Chile resuelve el cubo significativamente más rápido que Perú y Argentina, mientras que entre Perú y Argentina no se encontraron diferencias significativas.
+
+En conclusión, Chile presenta un mejor desempeño promedio en los tiempos de resolución del cubo Megaminx en comparación con Argentina y Perú.
+
+
+
+```{r}
+library(pwr)
+samples = c(10, 20, 30, 40, 50)
+effect = 0.5
+alpha = 0.05
+pwr.t.test(n = c(10,20,30,40,50), d = effect, sig.level = alpha, type = "two.sample", alternative = "two.sided")
+
+```

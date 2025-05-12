@@ -1,0 +1,39 @@
+---
+title: "e5"
+author: "Grupo 9"
+date: "2025-04-07"
+output: html_document
+---
+
+
+
+
+# Pregunta 2
+
+## Una agencia de marketing desea determinar si hay una diferencia significativa en la efectividad de tres estrategias publicitarias utilizadas para promocionar un nuevo producto. Para ello, se ha recopilado información de personas que fueron expuestas a las tres estrategias publicitarias, registrando si mostraron una aceptación (A) o rechazo (R) a cada una de ellas.
+¿Qué puede concluir la agencia de marketing sobre la efectividad de las estrategias publicitarias para promover el nuevo producto?
+
+
+Para esta pregunta se decide utilizar la prueba Q de cochran, debido especificamente a los tipos de variables que se tienen, en este caso se tienen 3 distintas estrategias y un resultado (A o R), que provienen de los mismos individuos.
+
+Para poder aplicarla se necesita:
+
+- Respuesta dicotomica.
+- Grupos relaciones. Si, las 3 estrategias se prueban sobre las mismas personas
+- Size de la muestra. n>= 24, si.
+
+
+Se realiza la siguiente hipotesis:
+$$H_0: \text{La proporcion de aceptacion es la misma para las 3 estrategias} (p_1 = p_2 = p_3) \\ H_A: \text{La proporcion de aceptacion difiere en almenos una de las estrategias}$$
+```{r}
+library(dplyr)
+set.seed(326)
+alpha = 0.05
+datos = read.csv2("EP04 Datos.csv")
+muestra =  slice_sample(datos, n=50, replace = FALSE)
+long_muestra = muestra |> pivot_longer(cols = c("estrategia_1", "estrategia_2", "estrategia_3"))
+long_muestra = long_muestra %>% rename(estrategia = name, resultado = value)
+cochran = cochran.qtest(resultado ~ estrategia | id, data = long_muestra, alpha = alpha)
+print(cochran)
+```
+Ya que se tiene un $p = 0.889$, no se puede rechazar la hipotesis nula $H_0$. No hay evidencia estadistica suficiente para decir que existen diferencias en la efectividad de las estrategias

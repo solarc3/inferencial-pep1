@@ -1,0 +1,46 @@
+---
+title: "ep 01"
+author: "Ignacio Solar Josepha Gaete Diego Gomez"
+date: "2025-03-18"
+output: html_document
+---
+```{r}
+db = read.csv("DB.csv")
+```
+
+```{r}
+# --- PASO 0: Instalar y Cargar el Paquete (si no lo has hecho) ---
+#install.packages("statpsych")
+library(statpsych)
+
+# --- PASO 1: Definir los Datos de la Tabla 8.8 ---
+
+# Vector 'f': Frecuencias de éxito (Clase = Comestible)
+# Nombres corresponden a Forma del sombrero: Campana, Convexo, Hundido, Nudoso, Plano
+comestibles <- c(Campana = 404, Convexo = 1948, Hundido = 32, Nudoso = 228, Plano = 1596)
+n_totales <- c(Campana = 452, Convexo = 3656, Hundido = 32, Nudoso = 828, Plano = 3152)
+comestible <- c (404 , 1948 , 32 , 228 , 1596)
+venenoso <- c (48 , 1708 , 0 , 600 , 1556)
+tabla <- as.table ( rbind ( comestible , venenoso ) )
+dimnames ( tabla ) <- list ( tipo = c ( " comestible " , " venenoso " ) ,
+                             sombrero = c ( " campana " , " convexo " , " hundido " , " nudoso " ,
+                                            " plano " ) )
+print(tabla)
+
+
+
+alpha <- 0.05
+
+# Llamar a la función.
+# Le pasamos el alfa global, el vector de éxitos (f) y el vector de totales (n).
+# La función se encarga internamente del ajuste Bonferroni.
+ci.pairs.prop.bs(alpha = 0.005,f = comestibles,n = n_totales)
+
+# --- Interpretación Rápida ---
+# La salida es una matriz. Cada fila representa una comparación par a par (ej., "1 2" compara el grupo 1 'Campana' con el grupo 2 'Convexo').
+# - Estimate: La diferencia estimada en las proporciones (Prop1 - Prop2).
+# - LL y UL: Los límites inferior y superior del intervalo de confianza ajustado al 95% (simultáneo) para la verdadera diferencia.
+# - Si un intervalo (LL, UL) NO incluye 0, sugiere una diferencia estadísticamente si`gnificativa entre ese par de formas de sombrero,
+#   considerando el ajuste por comparaciones múltiples.
+```
+

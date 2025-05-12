@@ -1,0 +1,39 @@
+---
+title: "EP08"
+author: "Equipo 9"
+date: "2025-05-05"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+datos = read.csv2("EP08 Datos CASEN 2017.csv", sep= ",")
+estado_civil = datos %>% filter(ecivil == "Casado(a)" | ecivil == "Conviviente o pareja sin acuerdo de unión civil" | ecivil == "Conviviente civil (con acuerdo de unión civil)")
+```
+
+# Contexto
+Como habíamos visto a comienzos del semestre, la Encuesta de Caracterización Socioeconómica Nacional (Casen) es realizada por el Ministerio de Desarrollo Social de forma periódica para conocer la situación de los hogares chilenos con relación a aspectos demográficos, de educación, salud, vivienda, trabajo e ingresos. Es la principal fuente de información para estimar la magnitud de la pobreza y la distribución del ingreso en el país.
+
+Se tiene a disposición un archivo CSV con un subconjunto de los datos obtenidos en la Casen 2017. El equipo debe revisar las columnas disponibles en este archivo según la descripción en el libro de códigos de la encuesta, que también queda disponible para este ejercicio. Es importante notar que en esta encuesta hay datos de carácter colectivo sobre “el hogar” del entrevistado, pero también hay datos de carácter individual, que se refieren “al jefe o la jefa de hogar” (no al entrevistado).
+
+# Preguntas
+## Pregunta 1
+
+Propongan una pregunta de investigación original, que involucre la comparación de una frecuencia de un evento o característica en dos grupos independientes (más abajo se dan unos ejemplos). Fijando una semilla propia, seleccionen una muestra aleatoria de hogares (100 < n < 150) y respondan la pregunta propuesta utilizando una prueba de permutaciones Monte Carlo. Indicación: creen su propio código, específicamente para este problema, no usen directamente el script del apunte.
+
+### Respuesta
+
+### Desarrollo
+
+### Conclusión
+
+
+## Pregunta 2
+Propongan una pregunta de investigación original, que involucre la comparación de las medias de más de dos grupos independientes (más abajo se dan unos ejemplos). Fijando una semilla distinta a la anterior, seleccionen una muestra aleatoria de hogares (200 < n < 300) y respondan la pregunta propuesta utilizando bootstrapping. Solo por ejercicio académico, aplique un análisis post-hoc con bootstrapping aunque este no fuera necesario. Indicación: consideren que el análisis post-hoc debe hacerse con las mismas remuestras usadas para la prueba ómnibus.
+
+### Respuesta
+
+### Desarrollo
+
+### Conclusión
+

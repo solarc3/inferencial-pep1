@@ -1,0 +1,83 @@
+---
+title: "analisis atletas pregunta 1"
+author: "ignacio solar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(ggpubr)
+```
+
+## Se formulan las hipotesis nula y alternativa de la siguiente manera:
+
+- Hipotesis Nula ($ H_0 $): El tiempo medio de los atletas de raza negra antes del programa es igual a 14.3 segundos. $$ H_0: \mu = 14.3 $$
+- Hipotesis Alternativa ($ H_a $): El tiempo medio de los atletas de raza negra antes del programa es inferior a 14.3 segundos (afirmacion del comite olimpico). $$H_A: \mu < 14.3$$
+
+Esto es matematicamente:
+$$
+H_0: \mu = 14.3 \qquad H_A: \mu < 14.3
+$$
+Esta es una prueba de cola izquierda, ya que la hipotesis alternativa plantea que la media es menor que el valor de referencia.
+
+
+## Seleccion de prueba 
+
+- Se realiza una prueba de hipotesis sobre la media poblacional ($\mu$).
+
+- La desviacion estandar ($\sigma$) es desconocida.
+
+Se propone utilizar la prueba t student con un nivel de significancia $ \alpha = 0.05$, se debe comprobar ademas si existen suficientes datos y si ademas estos se aproximan a una distrbucion normal.
+
+
+## Verificacion de condiciones
+
+Cargamos los datos
+
+```{r}
+datos = read.csv2("EP02 Datos(1).csv")
+names_c = dput(names(datos))
+dF = data.frame(datos)
+```
+
+vemos el subset
+
+```{r}
+datos_negros_antes = subset(datos[c("Raza","Previo")], Raza == "Negra")
+n_antes = length(datos_negros_antes$Previo) 
+print(paste("Tamaño de la muestra (n):", n_antes))
+```
+
+Se tiene una muestra pequeña, hace que su normalidad sea mas importante, se verifica eso ahora
+
+```{r}
+shapiro = shapiro.test(datos_negros_antes$Previo)
+print(shapiro)
+```
+
+Graficamos ademas los datos
+
+```{r}
+ggqqplot(datos_negros_antes, x = "Previo",conf.int.level = 0.95, xlab = "Quantiles teoricos", y = "Quantiles de las muestras")
+
+```
+
+Dado el valor p y la distribucion de los datos en la grafica, no hay evidencia suficiente para rechazar la normalidad de los datos.
+
+Se procede con la prueba t para una muestra 
+
+```{r}
+mu_h0 = 14.3 
+alpha = 0.05 
+
+t_resultado = t.test(datos_negros_antes$Previo,
+                      mu = mu_h0,                 
+                      conf.level = 1 - alpha,      
+                      alternative = "less")      
+
+print(t_resultado) 
+```
+
+Dado que el valor p = 0.1991 es mayor o giaul que el nivel de significancia $\alpha = 0.05$, se falla en rechazar la hipotesis nula. Por lo tanto, no existe evidencia suficiente para afirmar que los datos **soporten** la afirmacion del comite olimpico, de que el mejor tiempo medio de los atletlas negros antes del programa sea inferior a 14.3 segundos. El intervalo de confianza del 95% para la media indica que esta entre -Inf y 14.48 segundos, lo cual incluye valores iguales o superiores a 14.3.

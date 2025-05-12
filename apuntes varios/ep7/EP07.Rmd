@@ -1,0 +1,417 @@
+---
+title: "EP07"
+author: "Equipo 9"
+date: "2025-04-30"
+output: html_document
+---
+
+```{r}
+if (!requireNamespace("knitr", quietly = TRUE)) {
+  install.packages("knitr")
+}
+library(knitr)
+
+if (!requireNamespace("kableExtra", quietly = TRUE)) {
+  install.packages("kableExtra")
+}
+library(kableExtra)
+
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+library(dplyr)
+
+if (!requireNamespace("ggpubr", quietly = TRUE)) {
+  install.packages("ggpubr")
+}
+library(ggpubr)
+if (!requireNamespace("ez", quietly = TRUE)) {
+  install.packages("ez")
+}
+library(ez)
+```
+
+```{r}
+datos <- read.csv("EP07 Datos.csv")
+```
+
+# Contexto
+En el trabajo de título de una estudiante del DIINF se reportan tiempos de ejecución (en milisegundos) y la cercanía con la solución óptima (en por ciento) de la mejor solución encontrada con tres versiones de un algoritmo genético para resolver instancias del problema del vendedor viajero disponibles en repositorios públicos. Ahora debe enfrentar el análisis de estos datos, por que está solicitando ayuda de las y los estudiantes de Estadística Inferencial.
+
+```{r}
+tabla <- data.frame(
+  Variable = c("instancia", "n.nodos", "n.aristas", "tiempo.A", "tiempo.B", "tiempo.C", "mejor.A", "mejor.B", "mejor.C"),
+  Descripción = c(
+    "Instancia de prueba.",
+    "Cantidad de nodos",
+    "Cantidad de aristas",
+    "Tiempo de ejecución algoritmo A (ms)",
+    "Tiempo de ejecución algoritmo B (ms)",
+    "Tiempo de ejecución algoritmo C (ms)",
+    "Porcentaje de cercanía a solución óptima para Algoritmo A",
+    "Porcentaje de cercanía a solución óptima para Algoritmo B",
+    "Porcentaje de cercanía a solución óptima para Algoritmo C"
+  )
+)
+
+# Crear la tabla bonita
+kbl(tabla, align = "l", col.names = c("Variable", "Descripción")) %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  row_spec(0, bold = TRUE, background = "#4682B4", color = "white") %>%
+  row_spec(1:nrow(tabla), background = "#ADD8E6")
+```
+
+# Pregunta 1
+Observando los datos, la memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones A y B del algoritmo cuando las instancias tienen 45 o más nodos. ¿Los datos respaldan la intuición de la memorista?
+Para responder, filtren los datos para tener las instancias con 45 o más nodos y seleccionen las columnas de los tiempos de ejecución de las versiones A y B en formato ancho. Usando como semilla el valor 71, obtenga muestras aleatorias independientes de 23 tiempos registrados por la versión A y 22 tiempos registrados por la versión B del algoritmo. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+## Respuesta
+
+```{r}
+#Obtener datos
+datos_filtrados <- datos[datos$n.nodos >= 45, ]
+tiempos <- datos_filtrados[, c("tiempo.A", "tiempo.B")]
+
+#Seed
+set.seed(71)
+
+#Obtener muestras aleatorias
+muestra_A <- sample(tiempos$tiempo.A, 23)
+muestra_B <- sample(tiempos$tiempo.B, 22)
+```
+
+## Hipótesis
+
+- Hipótesis nula: No hay diferencia entre las distribuciones de los tiempos de ejecución de los algoritmos A y B con cantidad de nodos mayor o igual a 45.
+
+  $H_0: Distribución_A = Distribución_B$.
+
+- Hipótesis alternativa: Existen diferencias entre las distribuciones de los tiempos de ejecución de los algoritmos A y B con cantidad de nodos mayor o igual a 45.
+
+  $H_A: Distribución_A \ne Distribución_B$
+
+## Desarrollo
+
+### Prueba
+
+#### Histograma
+
+```{r}
+df <- data.frame(
+  tiempo = c(muestra_A, muestra_B),
+  algoritmo = factor(c(rep("A", length(muestra_A)), rep("B", length(muestra_B))))
+)
+
+df$tiempo_segundos <- df$tiempo / 1000 / 60
+
+ggplot(df, aes(x = tiempo_segundos, fill = algoritmo)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 10) +
+  labs(
+    title = "Histograma de tiempos por algoritmo",
+    x = "Tiempo de ejecución (minutos)",
+    y = "Frecuencia"
+  ) +
+  theme_minimal() +
+  facet_wrap(~ algoritmo, scales = "free")
+```
+
+Se decidió usar la prueba U de Wilcoxon-Mann-Whitney, debido a que, como se puede ver en el histograma, tenemos muestras que no siguen una distribución normal y queremos comparar dos muestras independientes para saber si existe una diferencia significativa entre los dos grupos.
+
+### Condiciones
+Las observaciones de ambas muestras son independientes debido a que corresponden a ejecuciones distintas de los algoritmos y no influyen en los datos de la otra.
+
+La escala de medición es continua, puesto que tiene un cero absoluto y permite comparaciones entre los tiempos. (Por ejemplo, este tiempo fue el doble de rápido que otro)
+
+```{r}
+#Prueba U de Wilcoxon-Mann-Whitney
+
+alfa <- 0.05
+
+pruebaWilcox <- wilcox.test(muestra_A, muestra_B,
+                            alternative = "two.sided", conf.level = 1 - alfa)
+p <- pruebaWilcox$p.value
+print(pruebaWilcox)
+```
+
+Ya que el valor $p < 0.05$, se rechaza la hipótesis nula. Por lo tanto, podemos concluir que existe suficiente evidencia, con un nivel de confianza del 95%, para afirmar que hay diferencias significativas entre las distribuciones de los tiempos de ejecución de los algoritmos A y B con número de nodos mayor o igual a 45.
+
+# Pregunta 2
+La memorista también sospecha que, al comparar las mismas instancias de iguales características, las mejores soluciones encontradas por las versiones A y C tienen rendimientos distintos. ¿Estará en lo cierto?
+Para responder, filtren los datos para tener las instancias con 45 o más nodos y seleccionen las columnas con el mejor rendimiento de las versiones A y C en formato ancho. Usando como semilla el valor 54, obtengan una muestra aleatoria de 20 instancias. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+## Respuesta
+Primero filtran los datos y se obtienen las muestras aleatorias.
+
+```{r}
+# Seed
+set.seed(54)
+
+# Filtrado de datos
+datos_filtrados <- datos[datos$n.nodos >= 45, ]
+tiempos <- datos_filtrados[, c("tiempo.A", "tiempo.C")]
+
+# Obtener muestras aleatorias
+muestra_A <- sample(tiempos$tiempo.A, 20)
+muestra_C <- sample(tiempos$tiempo.C, 20)
+```
+
+Teniendo los datos filtrados, se busca observar el comportamiento de las distribuciones para los algoritmos A y C.
+
+```{r}
+set.seed(54)
+library(tidyr)
+
+muestraP2 <- datos |>
+  filter(n.nodos >= 70, n.nodos <= 85) |>
+  select(instancia, mejor.A, mejor.C) |>
+  sample_n(24)
+
+datosP2Largos <- muestraP2 |>
+  pivot_longer(-instancia, names_to = "version",
+               names_pattern = "mejor[.](.*)",
+               values_to = "mejor_sol") |>
+  mutate(instancia = factor(instancia)) |>
+  mutate(version = factor(version))
+```
+
+```{r}
+p2 <- ggboxplot(datosP2Largos,
+                x = "version", y = "mejor_sol", fill = "version", 
+                xlab = "Versión del algoritmo",
+                ylab = "Mejor resultado (% del óptimo)")
+print(p2)
+```
+
+En base al diagrama de caja, se observa que las distribuciones de los mejores rendimientos de los algoritmos A y C no son normales. Por lo tanto, se decide usar la prueba U de Wilcoxon-Mann-Whitney para comparar las dos muestras independientes. 
+
+```{r}
+print(ks.test(muestraP2[["mejor.A"]], muestraP2[["mejor.C"]]))
+```
+
+Dado que el valor $p < 0.05$, se rechaza la hipótesis nula. Por lo tanto, podemos concluir que existe suficiente evidencia, con un nivel de confianza del 95%, para afirmar que hay diferencias significativas entre las distribuciones de los mejores rendimientos de los algoritmos A y C con número de nodos mayor o igual a 45.
+
+En vista de que las distribuciones son asimetricas, se decide usar una transformación logarítmica para normalizar los datos.
+
+Se definen las hipótesis nula y alternativa.
+
+## Hipótesis
+- Hipótesis nula: No hay diferencia entre las distribuciones de los mejores rendimientos de los algoritmos A y C con cantidad de nodos mayor o igual a 45.
+
+  $H_0: Distribución_A = Distribución_C$.
+  
+- Hipótesis alternativa: Existen diferencias entre las distribuciones de los mejores rendimientos de los algoritmos A y C con cantidad de nodos mayor o igual a 45.
+
+  $H_A: Distribución_A \ne Distribución_C$
+
+## Desarrollo
+### Condiciones
+Las observaciones de ambas muestras son independientes debido a que corresponden a ejecuciones distintas de los algoritmos y no influyen en los datos de la otra.
+
+La escala de medición es continua, puesto que tiene un cero absoluto y permite comparaciones entre los tiempos. (Por ejemplo, este tiempo fue el doble de rápido que otro)
+
+### Prueba
+#### Histograma
+```{r}
+df <- data.frame(
+  rendimiento = c(muestra_A, muestra_C),
+  algoritmo = factor(c(rep("A", length(muestra_A)), rep("C", length(muestra_C))))
+)
+
+df$rendimiento_porcentaje <- df$rendimiento / 100
+
+ggplot(df, aes(x = rendimiento_porcentaje, fill = algoritmo)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 15) +
+  labs(
+    title = "Histograma de rendimientos por algoritmo",
+    x = "Rendimiento (porcentaje)",
+    y = "Frecuencia"
+  ) +
+  theme_minimal() +
+  facet_wrap(~ algoritmo, scales = "free")
+```
+
+Se decidió usar la prueba U de Wilcoxon-Mann-Whitney, debido a que, como se puede ver en el histograma, tenemos muestras que no siguen una distribución normal y queremos comparar dos muestras independientes para saber si existe una diferencia significativa entre los dos grupos.
+
+```{r}
+# Prueba U de Wilcoxon-Mann-Whitney
+
+alfa <- 0.05
+
+pruebaWilcox <- wilcox.test(muestra_A, muestra_C,
+                            alternative = "two.sided", conf.level = 1 - alfa)
+
+p <- pruebaWilcox$p.value
+print(pruebaWilcox)
+```
+
+Ya que el valor $p > 0.05$, se falla al rechazar la hipótesis nula. Por lo tanto, no hay suficiente evidencia, con un nivel de confianza del 95%, para afirmar que hay diferencias significativas entre las distribuciones de los mejores rendimientos de los algoritmos A y C con número de nodos mayor o igual a 45.
+
+# Pregunta 3
+La memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones del algoritmo cuando las instancias de prueba tienen 70 o más nodos. ¿Los datos respaldan la intuición de la memorista?
+Para responder, filtren los datos para tener las instancias con 70 o más nodos y seleccionen las columnas con los tiempos de ejecución registrados (en formato ancho). Usando como semilla el valor 31, obtengan muestras aleatorias independientes de 17, 13 y 15 tiempos registrados por las versiones A, B y C, respectivamente. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+## Respuesta
+
+```{r}
+library(dplyr)
+library(car)
+datos70 = datos %>% 
+  filter(n.nodos >= 70) %>% 
+  select(tiempo.A, tiempo.B, tiempo.C)
+
+set.seed(31)
+muestra_A3 = sample(datos70$tiempo.A, 17)
+muestra_B3 = sample(datos70$tiempo.B, 13)
+muestra_C3 = sample(datos70$tiempo.C, 15)
+
+```
+
+## Hipótesis
+
+- Hipótesis nula: Las distribuciones de los tiempos de ejecucion de A, B y C son iguales.
+
+  $H_0: F_A = F_B = F_C$.
+
+- Hipótesis alternativa: Al menos una difiere en su distribucion de tiempos.
+
+  $H_A: \exists~i \ne j : F_i \ne F_j$
+  
+  
+Se verifica primero mediante la prueba de levene si se aplica metodo parametrico o no, es una de las condiciones para aplicar ANOVA.
+
+```{r}
+df3 = data.frame(
+  tiempo    = c(muestra_A3, muestra_B3, muestra_C3),
+  algoritmo = factor(
+    rep(c("A","B","C"),
+        times = c(length(muestra_A3),
+                  length(muestra_B3),
+                  length(muestra_C3)))
+  )
+)
+levene3 = leveneTest(tiempo ~ algoritmo, data = df3)
+print(levene3)
+```
+Dado el valor p, si bien no se puede rechazar la hipotesis de homogeneidad de los datos, se continuan verificando condiciones.
+```{r}
+shapiro_A3 = shapiro.test(muestra_A3)
+shapiro_B3 = shapiro.test(muestra_B3)
+shapiro_C3 = shapiro.test(muestra_C3)
+
+print(shapiro_A3)
+print(shapiro_B3)
+print(shapiro_C3)
+```
+Para el grupo A, se rechaza la hipotesis de que los datos siguen una distribucion normal, se deben utilizar metodos no parametricos, se utilizara Kruskall
+
+```{r}
+kw3 = kruskal.test(tiempo ~ algoritmo, data = df3)
+print(kw3)
+```
+
+Dado el valor p entregado, se rechaza la hipotesis nula y se puede concluir que almenos 2 versiones difieren significativamente.
+
+Se aplica un procedimiento Post-Hoc para saber que datos son los que difieren realmente.
+
+```{r}
+  posthoc3 = pairwise.wilcox.test(
+    x = df3$tiempo,
+    g = df3$algoritmo,
+    p.adjust.method = "holm",
+    exact = FALSE
+  )
+  print(posthoc3)
+```
+
+El valor p en el caso B vs C muestra que existe una diferencia significativa entre estos pares. 
+
+# Pregunta 4
+La memorista también sospecha que, al comparar las mismas instancias con iguales características, las mejores soluciones encontradas por las diferentes versiones del algoritmo tienen rendimientos distintos. ¿Estará en lo cierto?
+Para responder, filtren los datos para tener las instancias con 70 o más nodos y seleccionen las columnas con los mejores rendimientos registrados. Usando como semilla el valor 71, obtengan una muestra aleatoria de 21 instancias. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+## Respuesta
+
+```{r}
+#Obtener datos
+datos_filtrados <- datos[datos$n.nodos >= 70, ]
+mejores_tiempos <- datos_filtrados[, c("mejor.A", "mejor.B", "mejor.C")]
+
+#Seed
+set.seed(71)
+
+#Obtener muestras aleatorias
+muestra <- mejores_tiempos[sample(1:nrow(mejores_tiempos), 21), ]
+```
+
+## Hipótesis
+
+- Hipótesis nula: No hay diferencia entre el rendimiento de los algoritmos A, B y C.
+
+  $H_0: Distribución_A = Distribución_B = Distribución_C$.
+
+- Hipótesis alternativa: Al menos uno de los algoritmos presenta un rendimiento distinto a los otros.
+
+  $H_A: \exists~i \ne j : \text{Distribución}_i \ne \text{Distribución}_j$
+
+## Desarrollo
+
+### Diagrama de caja
+
+```{r}
+muestra$id <- 1:nrow(muestra)
+
+muestra_larga <- muestra %>%
+  pivot_longer(cols = c("mejor.A", "mejor.B", "mejor.C"), 
+               names_to = "algoritmo", 
+               values_to = "mejor_solucion")
+
+box_plot4 <- ggboxplot(muestra_larga,
+                x = "algoritmo",
+                y = "mejor_solucion",
+                fill = "algoritmo",
+                xlab = "Algoritmo",
+                ylab = "Mejor rendimiento (%)")
+print(box_plot4)
+```
+
+Como se puede ver en el diagrama de caja, tenemos muestras que no siguen una distribución normal y presentan asimetrías, además, como se trata de porcentajes, decidimos usar la prueba de Friedman para comparar estas muestras de datos.
+
+### Condiciones
+1. La escala es ordinal, puesto que los valores porcentuales tienen una valor mínimo y máximo, y son comparables entre ellos. 
+
+2. Las observaciones fueron obtenidas con una semilla por aleatoriedad y son independientes entre sí, ya que fueron medidas de distintos algoritmos por separado.
+
+3. La variable independiente, que es porcentual, se trabajará como categórica y se tienen 3 niveles que corresponden a los algoritmos A, B y C.
+
+### Prueba
+
+```{r}
+#Prueba de Friedman
+
+alfa <- 0.05
+
+prueba_friedman <- friedman.test(mejor_solucion ~ algoritmo | id, data = muestra_larga)
+p_friedman <- prueba_friedman$p.value
+
+print(prueba_friedman)
+```
+
+Como el $\text{p-value} < p_friedman$, se rechaza la hipótesis nula a favor de la alternativa por lo que concluimos que, existe suficiente evidencia para afirmar que hay diferencias entre los mejores tiempos de los algoritmos al evaluar los tiempos hechos en la misma instancia.
+
+### Post-hoc
+Hacemos la prueba post-hoc para verificar donde se encuentran las diferencias vistas en la prueba.
+
+```{r}
+if (p_friedman < alfa) {
+  post_hoc <- pairwise.wilcox.test(
+    x = muestra_larga$mejor_solucion,
+    g = muestra_larga$algoritmo,
+    p.adjust.method = "holm",
+    paired = TRUE,
+    exact = FALSE
+  )
+  print(post_hoc)
+}
+```
+
+Como podemos ver, todos los p-values son menores a 0.05, asi que podemos inferir que existen diferencias entre todos los pares de muestras.

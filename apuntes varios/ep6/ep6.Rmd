@@ -1,0 +1,160 @@
+---
+title: "EP06"
+author: "Equipo 9"
+date: "2025-04-21"
+output: html_document
+---
+
+```{r}
+if (!requireNamespace("knitr", quietly = TRUE)) {
+  install.packages("knitr")
+}
+library(knitr)
+
+if (!requireNamespace("kableExtra", quietly = TRUE)) {
+  install.packages("kableExtra")
+}
+library(kableExtra)
+
+if (!requireNamespace("dplyr", quietly = TRUE)) {
+  install.packages("dplyr")
+}
+library(dplyr)
+
+if (!requireNamespace("ggpubr", quietly = TRUE)) {
+  install.packages("ggpubr")
+}
+library(ggpubr)
+if (!requireNamespace("ez", quietly = TRUE)) {
+  install.packages("ez")
+}
+library(ez)
+if (!requireNamespace("nlme", quietly = TRUE)) {
+  install.packages("nlme")
+}
+library(nlme)
+if (!requireNamespace("emmeans", quietly = TRUE)) {
+  install.packages("emmeans")
+}
+library(emmeans)
+```
+
+```{r}
+datos <- read.csv("EP06 Datos.csv")
+```
+
+# Contexto
+Un equipo de investigadores del área de interacción humano-información está estudiando si el área temática y el nivel de dificultad del problema de información influyen en el tiempo (en segundos) que toma un usuario en formular una consulta de búsqueda para resolver dicho problema. Para ello, han reclutado a un grupo de participantes voluntarios, asignados aleatoriamente a distintos grupos. Cada participante debe resolver tres problemas de información con diferentes niveles de dificultad: baja, media y alta. A su vez, cada grupo debe resolver problemas relacionados a una temática diferente. Los datos recolectados contemplan las siguientes variables:
+
+```{r}
+tabla <- data.frame(
+  Variable = c("id", "area", "dificultad", "tiempo"),
+  Descripción = c(
+    "Identificador único de cada participante.",
+    "Área temática de los problemas que el participante debe responder. Variable categórica con los niveles Arquitectura, Biología, Computación, Economía, Física, Leyes, Literatura, Matemáticas, Música, Pedagogía, Psicología, Química.",
+    "Nivel de dificultad del problema resuelto. Variable categórica con los niveles Baja, Media y Alta.",
+    "Tiempo, en segundos, que toma al participante formular la consulta."
+  )
+)
+
+# Crear la tabla bonita
+kbl(tabla, align = "l", col.names = c("Variable", "Descripción")) %>%
+  kable_styling(full_width = F, bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  row_spec(0, bold = TRUE, background = "#4682B4", color = "white") %>% 
+  row_spec(1:nrow(tabla), background = "#ADD8E6")
+```
+
+# Pregunta
+En este momento, los investigadores buscan determinar si existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de arquitectura.
+
+## Respuesta
+
+```{r}
+datos_filtrados = datos %>% filter(area == "Arquitectura") 
+datos_separados = datos_filtrados %>% select(-area) %>% split(datos$dificultad)
+baja = datos_separados[["Baja"]]
+medio = datos_separados[["Media"]]
+alta = datos_separados[["Alta"]]
+```
+
+## Hipótesis
+- Hipótesis nula: No existen diferencias en el tiempo promedio de resolución del problema entre los participantes de los distintos niveles de dificultad. 
+
+  Matemáticamente: $\mu_{B} = \mu_{M} = \mu_{A}$.
+
+- Hipótesis alternativa: Existen diferencias en el tiempo promedio de resolución del problema entre los participantes de los distintos niveles de dificultad. 
+
+  Matemáticamente: $\exists~i, j \in \{B, M, A\},~i \ne j$ tal que $\mu_i \ne \mu_j$, es decir, existe al menos una media μ que es diferente a las demás.
+
+## Desarrollo
+
+### Condiciones
+#### La escala con la que se mide la variable dependiente tiene las propiedades de una escala de intervalos iguales.
+La variable dependiente en este caso se trata del tiempo, como este se mide en segundos y cada segundo es igual a otro segundo, se puede considerar que la variable tiene una escala de intervalos iguales.
+
+#### Las observaciones son independientes entre sí."
+Las observaciones son independientes entre sí, ya que cada participante es diferente y no influye en el tiempo de otro participante.
+
+#### Se puede suponer razonablemente que la(s) población(es) de origen sigue(n) una distribución normal.
+Para comprobar que se cumpla esta condición, se utilizará el gráfico QQ con un nivel de confianza del 99%.
+
+```{r}
+grafico <- ggqqplot(datos_filtrados,
+                     x = "tiempo",
+                     y = "dificultad",
+                     color = "dificultad", conf.int.level = 0.99) +
+  labs(title = "Gráfico QQ de los tiempos por dificultad") +
+  theme_minimal()
+grafico <- grafico + facet_wrap(~ dificultad)
+grafico <- grafico + rremove("x.ticks") + rremove("y.ticks")
+grafico <- grafico + rremove("x.text") + rremove("y.text")
+grafico <- grafico + rremove ("axis.title")
+print(grafico)
+```
+
+En base al grafico, parece no cumplirse esta condición, así que se realizará una comprobación con el test de Shapiro-Wilk.
+
+```{r}
+by(datos_filtrados$tiempo, datos_filtrados$dificultad, shapiro.test)
+```
+Dados los resultados del test de Shapiro-Wilk con el nivel de significancia de 0.01, los p-value alcanzados son suficientemente altos como para no rechazar la hipótesis nula de normalidad. Por lo tanto, se puede suponer que los datos provienen de una población normal.
+
+#### La matriz de varianzas-covarianzas es esférica, es decir, las varianzas entre los diferentes niveles de las medidas repetidas deben ser iguales
+
+```{r}
+#se prueba utilizando ezanova
+prueba_esfe <- ezANOVA(
+  data        = datos_filtrados,
+  dv          = tiempo,
+  wid         = id,
+  within      = dificultad,
+  detailed    = TRUE,
+  return_aov  = TRUE
+)
+prueba_esfe$`Mauchly's Test for Sphericity`
+#correcciones generadas
+prueba_esfe$`Sphericity Corrections`
+print(prueba_esfe)
+```
+
+Ya que el valor $p > 0.01$, no se puede rechazar la hipotesis de esfericidad de los datos, ademas, el valor de corrección es muy pequeño, lo que confirma que el efecto de dificultad es altamente significativo a un nivel de confianza del 99%.
+
+## Prueba Post-Hoc
+
+Tras la realización de la prueba principal (modelo mixto), que indicó diferencias significativas entre los grupos, se aplicó la prueba post-hoc HSD de Tukey para realizar comparaciones múltiples entre los pares de dificultades.
+
+```{r}
+# Prueba post-hoc de Tukey
+mixto <- lme(tiempo ~ dificultad, data = datos_filtrados, random = ~1|id)
+medias <- emmeans(mixto, "dificultad")
+
+hsd <- contrast(medias, method = "pairwise", adjust = "tukey")
+print(hsd, infer = TRUE, level = 0.99)
+print(plot(hsd, level = 0.99, colors = "steelblue") + 
+        ggtitle("Post-hoc HSD de Tukey") +
+        xlab("Diferencias en tiempos de resolución de problemas") +
+        ylab("Pares de dificultad") + theme_pubr())
+```
+Al analizar los p-value podemos ver que son todos menores a 0.01, lo que nos indica que existen diferencias significativas entre todos los pares de dificultades observados, esto nos permite inferir nuevamente que la dificultad de resolución de los problemas usados es altamente influyente en los tiempos correspondientes.
+
+## Conclusiones

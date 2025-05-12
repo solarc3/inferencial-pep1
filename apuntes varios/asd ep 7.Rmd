@@ -1,0 +1,33 @@
+---
+title: "asd"
+author: "Grupo 9"
+date: "2025-05-04"
+output: html_document
+---
+```{r}
+#install.packages("WRS2")
+library(boot)
+library(dplyr)
+library(WRS2)
+data(essays)
+
+grupo_control = essays %>% filter(group =="Control") %>% pull(errorRatio)
+#se puede calcular directamente, que es el 75%, proporcion muestral
+proporcion = essays %>% filter(group == "Control") %>% summarise(prop = mean(errorRatio < 1.5)) %>% pull(prop)
+cat(proporcion)
+prop = function (data, index){
+  
+  resample = data[index]
+  proportion = mean(resample < 1.5)
+  return (proportion)
+}
+
+set.seed(21284189)
+
+resultados = boot(data = grupo_control, statistic = prop, R = 5000)
+print(resultados)
+
+intervalos = boot.ci(resultados, conf = 0.95, type = c("perc", "bca"))
+print(intervalos)
+```
+

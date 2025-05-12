@@ -1,0 +1,39 @@
+---
+title: "ep3"
+output: html_document
+date: "2025-04-01"
+---
+```{r}
+library(ggplot2)
+dsvt = 1
+n = 100
+u = 10
+
+alpha = 0.05
+
+
+SE = dsvt / sqrt(n)
+
+zcrit_inferior = qnorm(alpha/2, mean = u, sd = SE, lower.tail = TRUE)
+zcrit_superior = qnorm(alpha/2, mean = u, sd = SE, lower.tail = FALSE)
+xcrit_inferior = u + zcrit_inferior*SE
+xcrit_superior = u + zcrit_superior*SE
+minimo = u - 4*SE
+minimo = min(minimo, xcrit_inferior - 0.5*SE)
+
+maximo = u + 4*SE
+maximo = max(maximo, xcrit_superior + 0.5*SE)
+
+
+valores = seq(minimo, maximo, length.out = 500)
+
+datos = data.frame(
+  x = valores,
+  densidad = dnorm(valores, mean = u, sd = SE)
+)
+
+p <- ggplot(datos, x=x) 
+p <- geom_ribbon(data = subset(datos, x >= xcrit_inferior & x <= xcrit_superior), aes(ymin = 0, ymax = densidad, fill = "Confianza (1-alpha)"), alpha = 0.4)
+print(p)
+```
+
